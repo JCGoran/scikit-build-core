@@ -362,7 +362,10 @@ def _build_wheel_impl(
             ),
             license_files=license_files,
         ) as wheel:
-            wheel.build(wheel_dirs)
+            wheel.build(
+                wheel_dirs,
+                exclude=[*settings.sdist.exclude, *settings.wheel.exclude],
+            )
 
             str_pkgs = (str(Path.cwd().joinpath(p).parent.resolve()) for p in packages)
             if editable and settings.editable.mode == "redirect":

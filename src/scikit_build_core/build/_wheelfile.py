@@ -10,6 +10,7 @@ import os
 import stat
 import time
 import zipfile
+from collections.abc import Sequence
 from email.message import Message
 from email.policy import EmailPolicy
 from pathlib import Path
@@ -19,6 +20,7 @@ from zipfile import ZipInfo
 import packaging.utils
 
 from .. import __version__
+from ._file_processor import each_unignored_file
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Set
@@ -141,7 +143,12 @@ class WheelWriter:
             **license_entries,
         }
 
-    def build(self, wheel_dirs: dict[str, Path]) -> None:
+    def build(
+        self,
+        wheel_dirs: dict[str, Path],
+        include: Sequence[str] = (),
+        exclude: Sequence[str] = (),
+    ) -> None:
         (targetlib,) = {"platlib", "purelib"} & set(wheel_dirs)
         assert {targetlib, "data", "headers", "scripts", "null"} >= wheel_dirs.keys()
 
@@ -153,7 +160,14 @@ class WheelWriter:
             plans[key] = wheel_dirs[key]
 
         for key, path in plans.items():
-            for filename in sorted(path.glob("**/*")):
+            for filename in sorted(
+                each_unignored_file(
+                    Path(),
+                    include=include,
+                    exclude=exclude,
+                    relative_path=path,
+                )
+            ):
                 is_in_dist_info = any(x.endswith(".dist-info") for x in filename.parts)
                 is_python_cache = filename.suffix in {".pyc", ".pyo"}
                 if filename.is_file() and not is_in_dist_info and not is_python_cache:

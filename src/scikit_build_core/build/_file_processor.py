@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 from pathlib import Path
+from typing import Optional
 from typing import TYPE_CHECKING
 
 import pathspec
@@ -32,6 +33,7 @@ def each_unignored_file(
     starting_path: Path,
     include: Sequence[str] = (),
     exclude: Sequence[str] = (),
+    relative_path: Optional[Path] = None,
 ) -> Generator[Path, None, None]:
     """
     Runs through all non-ignored files. Must be run from the root directory.
@@ -44,10 +46,18 @@ def each_unignored_file(
     exclude_spec = pathspec.GitIgnoreSpec.from_lines(exclude_lines)
     include_spec = pathspec.GitIgnoreSpec.from_lines(include)
 
-    for dirpath, _, filenames in os.walk(str(starting_path), followlinks=True):
-        all_paths = (Path(dirpath) / fn for fn in filenames)
+    for dirpath, _, filenames in os.walk(
+        str(relative_path / starting_path if relative_path else starting_path),
+        followlinks=True,
+    ):
+        all_paths = (
+            (Path(dirpath) / fn).relative_to(relative_path)
+            if relative_path
+            else Path(dirpath) / fn
+            for fn in filenames
+        )
         paths = (
-            p
+            relative_path / p if relative_path else p
             for p in all_paths
             if not exclude_spec.match_file(p) or include_spec.match_file(p)
         )
